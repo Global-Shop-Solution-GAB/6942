@@ -1,0 +1,71 @@
+﻿Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.External.Include.Library("BIR_Codesoft_ExtendedPreProc.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+
+'Set Report ID... used for setting/retriving printer selection.  Specific per reportid.
+Variable.Global.iReportID.Declare(Long,1865)
+
+'A bunch of stuff is handled in the library, so run this first to initialize the project.
+F.Intrinsic.Control.CallSub(Initialize)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Catching,"Sub",V.Ambient.CurrentSubroutine,"ErrorNo",V.Ambient.ErrorNumber,"ErrorDesc",V.Ambient.ErrorDescription) 
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.LoadData.Start
+F.Intrinsic.Control.Try
+
+V.Local..BulkDeclareString(sSql)
+
+'Getting run ID passed down
+V.Global.iBIRunID.Set(V.Passed.DATA-GAB-0)
+'Getting log ID passed down
+V.Global.iBILogID.Set(V.Passed.DATA-GAB-1)
+'Getting Sentinel flag passed down
+Variable.Global.bSentinel.Set(Variable.Passed.DATA-GAB-2)
+
+'F.Intrinsic.String.Build("select a.*, c.* {1} , IF(b.GSS_PART is null,substring(A.PART,0,17),b.DISPLAY_PART) AS DISPLAY_PART, IF(b.GSS_PART is null,substring(A.PART,18,3),b.DISPLAY_REV) AS DISPLAY_REV, IF(b.GSS_PART is null,A.PART,ltrim(rtrim(b.DISPLAY_PART))+' '+ltrim(rtrim(b.DISPLAY_REV))) AS DISPLAY_PARTREV, d.text EXTRATEXT from Y_SF_WORKORD a left outer join INV_LXR b ON a.PART=b.GSS_PART left outer join V_INVENTORY_ALL c on a.part=c.part and a.locn=c.location left outer join INV_EXTRA_TEXT d ON a.part=d.part {2} where RUNID = {0}",V.Global.iBIRunID,V.Global.sAdditionalSelect,V.Global.sAdditionalJoin,V.Local.sSql)
+
+'Include Inventory Corss reference values
+F.Intrinsic.String.Build("select a.*, c.* {1} , IF(b.GSS_PART is null,substring(A.PART,0,17),b.DISPLAY_PART) AS DISPLAY_PART, IF(b.GSS_PART is null,substring(A.PART,18,3),b.DISPLAY_REV) AS DISPLAY_REV, IF(b.GSS_PART is null,A.PART,ltrim(rtrim(b.DISPLAY_PART))+' '+ltrim(rtrim(b.DISPLAY_REV))) AS DISPLAY_PARTREV, d.text EXTRATEXT, e.* from Y_SF_WORKORD a left outer join INV_LXR b ON a.PART=b.GSS_PART left outer join V_INVENTORY_ALL c on a.part=c.part and a.locn=c.location left outer join INV_EXTRA_TEXT d ON a.part=d.part {2} left OUTER join INV_CROSS_REF e ON a.PART=e.part where RUNID = {0}",V.Global.iBIRunID,V.Global.sAdditionalSelect,V.Global.sAdditionalJoin,V.Local.sSql)
+
+F.Data.DataTable.CreateFromSQL("dtData","con",V.Local.sSql)
+
+
+'Set number of label copies from user input...
+F.Data.DataTable.AddColumn("dtData","LABEL_COPY","String",V.Global.iCopies)
+
+F.Intrinsic.Control.If(V.DataTable.dtData.RowCount,>,0)
+    'Checking to see if sequence being printed is Codesoft label
+    Function.Intrinsic.Control.If(Variable.Global.bSentinel,=,True)
+        'Stopping Logging
+        F.Global.BI.StopLogging(V.Global.iBILogID)
+        'Printing Codesoft label
+        F.Global.BI.PrintCodesoftLabelFromDataTable(V.Global.iBIRunID,V.Global.iBILogID,"dtData",V.Global.sPrinter,True)
+    Function.Intrinsic.Control.Else
+    	F.Intrinsic.UI.Msgbox("This project only uses Codesoft Labels and is not compatible with other label formats.","Label printing failed...")
+    Function.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+Function.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Catching,"Sub",V.Ambient.CurrentSubroutine,"ErrorNo",V.Ambient.ErrorNumber,"ErrorDesc",V.Ambient.ErrorDescription) 
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadData.End
+
+Program.Sub.Comments.Start
+${$0$}$BIR_PU_PO_Receipt$}$Mitch$}$3/25/2014
+${$5$}$2.0.0.0$}$2
+${$6$}$ghuff$}$20221020093446207$}$s89N93NTeas40rhsU1ZwRbCBj1OiVVM13nMXffIU0ae6OLQRg0qWOdXcybgRUp8JZnGqzfvEMOQ=
+Program.Sub.Comments.End
+
